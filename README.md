@@ -14,7 +14,7 @@ Un sniffer de paquetes personalizado desarrollado en Python para capturar, filtr
 
 ## Instalación
 1. Clona este repositorio:
-git clone https://github.com/tu-usuario/sniffer_personalizado.git
+git clone https://github.com/Cybermemillo/SnifferMemo.git
 
 2. Navega al directorio del proyecto:
 cd snifferPython
