@@ -2,6 +2,16 @@ import socket
 import platform
 import struct
 import string
+import threading
+import keyboard
+
+pausado = False
+
+def toggle_pausa():
+    global pausado
+    pausado = not pausado
+    estado = "PAUSADA" if pausado else "REANUDADA"
+    print(f"\n[!] Captura {estado}. Presiona 'ESPACIO' para continuar.")
 
 def mostrar_paquete(eth, ip, tcp=None, udp=None, texto_legible=None):
     print(f"\nEthernet Frame:")
@@ -127,32 +137,48 @@ def decodificar_paquete_udp(paquete):
         'checksum': checksum
     }
 
-def iniciar_captura(interface):
-    # Creamos un socket en bruto para capturar paquetes
+def iniciar_captura(interface, filtro=None):
+    global pausado
     try:
-        # AF_PACKET y SOCK_RAW son específicos de Linux para capturar paquetes en bruto
         sock = socket.socket(socket.AF_PACKET, socket.SOCK_RAW, socket.ntohs(3))
-        # Asociamos el socket a la interfaz especificada
         sock.bind((interface, 0))
-        print(f"Capturando paquetes en {interface}...")
+
+        # Hilo para controlar la pausa
+        keyboard.add_hotkey("space", toggle_pausa)
+
+        print(f"Capturando paquetes en {interface}... Presiona 'ESPACIO' para pausar/reanudar.")
+
         while True:
+            if pausado:
+                continue  # Si está pausado, no hace nada
+
             paquete, _ = sock.recvfrom(65535)
             eth = decodificar_paquete_ethernet(paquete)
-            
+
             if eth['eth_proto'] == 8:  # IPv4
                 ip = decodificar_paquete_ip(paquete[14:])
+                tcp, udp, texto_legible = None, None, None
 
                 if ip['proto'] == 6:  # TCP
                     tcp = decodificar_paquete_tcp(paquete[14 + ip['longitud_encabezado']:])
                     payload = paquete[14 + ip['longitud_encabezado'] + tcp['src_port']:]
                     texto_legible = extraer_texto_legible(payload)
-                    mostrar_paquete(eth, ip, tcp=tcp, texto_legible=texto_legible)
+
+                    # Aplicar filtros
+                    if filtro and not ((filtro == "HTTP" and (tcp['src_port'] == 80 or tcp['dest_port'] == 80 or tcp['src_port'] == 443 or tcp['dest_port'] == 443)) or
+                                       (filtro == "FTP" and (tcp['src_port'] == 21 or tcp['dest_port'] == 21 or tcp['src_port'] == 20 or tcp['dest_port'] == 20))):
+                        continue
 
                 elif ip['proto'] == 17:  # UDP
                     udp = decodificar_paquete_udp(paquete[14 + ip['longitud_encabezado']:])
                     payload = paquete[14 + ip['longitud_encabezado'] + 8:]
                     texto_legible = extraer_texto_legible(payload)
-                    mostrar_paquete(eth, ip, udp=udp, texto_legible=texto_legible)
+
+                    if filtro == "DNS" and (udp['src_port'] != 53 and udp['dest_port'] != 53):
+                        continue
+
+                mostrar_paquete(eth, ip, tcp=tcp, udp=udp, texto_legible=texto_legible)
+
     except PermissionError:
         print("Error: Necesitas permisos de superusuario para capturar paquetes.")
     except Exception as e:
