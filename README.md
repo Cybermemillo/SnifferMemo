@@ -1,7 +1,7 @@
 # Sniffer de Paquetes Personalizado
 
 ## Descripción
-Un sniffer de paquetes personalizado desarrollado en Python para capturar, filtrar y analizar paquetes de red. Este proyecto es ideal para aquellos interesados en ciberseguridad y redes.
+Un sniffer de paquetes personalizado desarrollado en Python para capturar, filtrar y analizar paquetes de red.
 
 ## Objetivos
 - Capturar paquetes de red en tiempo real.
